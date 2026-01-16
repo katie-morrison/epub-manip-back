@@ -14,10 +14,14 @@ public class CumulativeData {
     private String opfSpineToc;
     private String opfFallback;
     private ArrayList<String> ncxNavPoints;
+    private ArrayList<String> ncxNavPointsNonChapters;
     private ArrayList<String> opfManifestData;
     private ArrayList<String> opfSpineData;
+    private ArrayList<String> opfSpineNonChapters;
+    private String opfSpineContents;
     private ArrayList<String> opfReferenceData;
     private ArrayList<String> contentsOL1Data;
+    private ArrayList<String> contentsOL1NonChapters;
     private ArrayList<String> contentsOL2Data;
 
     public CumulativeData() {
@@ -25,15 +29,19 @@ public class CumulativeData {
         opfInd = 1;
         contentsInd = 1;
         ncxNavPoints = new ArrayList<String>();
+        ncxNavPointsNonChapters = new ArrayList<String>();
         opfManifestData = new ArrayList<String>();
         opfSpineData = new ArrayList<String>();
+        opfSpineNonChapters = new ArrayList<String>();
         opfReferenceData = new ArrayList<String>();
         contentsOL1Data = new ArrayList<String>();
+        contentsOL1NonChapters = new ArrayList<String>();
         contentsOL2Data = new ArrayList<String>();
         ncxContentNavPoint = null;
         opfContentsElement = null;
         opfNCXElement = null;
         opfSpineToc = null;
+        opfSpineContents = null;
         opfFallback = null;
     }
 
@@ -51,6 +59,10 @@ public class CumulativeData {
 
     public ArrayList<String> getNcxNavPoints() {
         return ncxNavPoints;
+    }
+
+    public ArrayList<String> getNcxNavPointsNonChapters() {
+        return ncxNavPointsNonChapters;
     }
 
     public String getNcxContentNavPoint() {
@@ -89,8 +101,20 @@ public class CumulativeData {
         return contentsOL1Data;
     }
 
+    public ArrayList<String> getContentsOL1NonChapters() {
+        return contentsOL1NonChapters;
+    }
+
     public ArrayList<String> getContentsOL2Data() {
         return contentsOL2Data;
+    }
+
+    public ArrayList<String> getOpfSpineNonChapters() {
+        return opfSpineNonChapters;
+    }
+
+    public String getOpfSpineContents() {
+        return opfSpineContents;
     }
 
     public void setNcxContentNavPoint(String ncxContentNavPoint) {
@@ -113,6 +137,10 @@ public class CumulativeData {
         this.opfFallback = opfFallback;
     }
 
+    public void setOpfSpineContents(String opfSpineContents) {
+        this.opfSpineContents = opfSpineContents;
+    }
+
     public void incrementNCXInd() {
         ncxInd++;
     }
@@ -132,9 +160,29 @@ public class CumulativeData {
             if (fallbackMatcher.find()) {
                 ncxContentNavPoint = ncxContentNavPoint.replace(fallbackMatcher.group(0), "fallback=\"" + opfFallback + "\"");
             }
-            ncxNavPoints.addFirst(ncxContentNavPoint);
+            ncxNavPointsNonChapters.addFirst(ncxContentNavPoint);
             ncxContentNavPoint = null;
         }
+
+        ArrayList<String> finalNavPoints = new ArrayList<String>();
+        Dummy dummy = new Dummy() {
+            @Override
+            public String execute(String value) {
+                int navPointInd = getNcxInd();
+                incrementNCXInd();
+                return "navPoint-" + navPointInd + "\" playOrder=\"" + navPointInd;
+            }
+        };
+        for (String navPoint : ncxNavPointsNonChapters) {
+            navPoint = FileUtils.processReplacements(navPoint, "(id=\")(.*?)(\")", 2, dummy);
+            finalNavPoints.add(navPoint);
+        }
+        for (String navPoint : ncxNavPoints) {
+            navPoint = FileUtils.processReplacements(navPoint, "(id=\")(.*?)(\")", 2, dummy);
+            finalNavPoints.add(navPoint);
+        }
+        ncxNavPoints = finalNavPoints;
+        ncxNavPointsNonChapters = null;
 
         if (opfContentsElement != null) {
             opfManifestData.addFirst(opfContentsElement);
@@ -145,6 +193,23 @@ public class CumulativeData {
             opfManifestData.addFirst(opfNCXElement);
             opfNCXElement = null;
         }
+
+        if (opfSpineContents != null) {
+            opfSpineNonChapters.addFirst(opfSpineContents);
+            opfSpineContents = null;
+        }
+
+        ArrayList<String> finalSpineData = new ArrayList<String>();
+        finalSpineData.addAll(opfSpineNonChapters);
+        finalSpineData.addAll(opfSpineData);
+        opfSpineData = finalSpineData;
+        opfSpineNonChapters = null;
+
+        ArrayList<String> finalcontentsOL1 = new ArrayList<String>();
+        finalcontentsOL1.addAll(contentsOL1NonChapters);
+        finalcontentsOL1.addAll(contentsOL1Data);
+        contentsOL1Data = finalcontentsOL1;
+        contentsOL1NonChapters = null;
     }
 
     public String toString() {

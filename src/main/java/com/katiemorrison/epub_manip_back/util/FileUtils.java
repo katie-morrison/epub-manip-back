@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class FileUtils {
 
@@ -48,4 +50,25 @@ public class FileUtils {
         deleteFileOrDirectory(directory, false);
     }
     
+    public static String processReplacements(String content, String patternString, int groupToReplace, Dummy dummy) {
+        Pattern pattern = Pattern.compile(patternString, Pattern.DOTALL);
+        Matcher matcher = pattern.matcher(content);
+
+        while (matcher.find()) {
+            String before = matcher.group(0);
+            String replacement = dummy.execute(matcher.group(groupToReplace));
+            StringBuilder after = new StringBuilder();
+            for (int i = 1; i <= matcher.groupCount(); i++) {
+                if (i == groupToReplace) {
+                    after.append(replacement);
+                } else {
+                    after.append(firstNonNull(matcher.group(i), ""));
+                }
+            }
+            content = content.replace(before, after);
+        }
+
+        return content;
+    }
+
 }
