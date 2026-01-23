@@ -101,7 +101,6 @@ public class UploadsController {
                     String pathPrepend = CONTAINER_NAME + File.separator;
                     String finalPath = (fileParts.getRootDir().equals(CONTAINER_NAME) ? "" : pathPrepend) + pathFromEpubRoot;
                     FileType type = fileOptions.getFileType(fileName);
-                    System.out.println("Name: " + fileName + ", type: " + type);
                     if (ext.equals(".ncx") || ext.equals(".opf") || (ext.equals(".xhtml") && type == FileType.NAVIGATION)) {
                         boolean firstInstance = false;
                         if (fileOptions.getUniqueFileLocs().get(ext).equals("")) {
@@ -114,7 +113,7 @@ public class UploadsController {
                         addHeaderToFile(parentFile, tempLoc + File.separator + fileName + tempInd + ext, firstInstance);
                         fileOptions.getReplacementData().getIndices().put(ext, tempInd + 1);
                         fileParts = new FileParts(pathPrepend, fileName, ext);
-                    } else if ((fileName.equals("mimetype") && ext.equals("")) || "container.xml".equals(fileName + ext)) {
+                    } else if ((fileName.equals("mimetype") && ext.equals("")) || pathFromEpubRoot.equals("META-INF" + File.separator)) {
                         fileParts = new FileParts(pathFromEpubRoot, fileName, ext);
                     } else if (ext.equals(".xhtml")) {
                         if (type == FileType.EXCLUSION || type == FileType.CHAPTER || type == FileType.OTHER) {
@@ -221,6 +220,14 @@ public class UploadsController {
             FileType type = fileOptions.getFileType(fileName);
             String newName = fileName;
 
+            //link to local element, e.g. href="#anchor"
+            if (originalPath.equals("")) {
+                ret.setNoMatch(false);
+                ret.setType(type);
+                ret.setOriginalPath(originalPath);
+                ret.setContent(content);
+                return ret;
+            }
 
             if (ext.equals(".xhtml")) {
                 if (type == FileType.NAVIGATION) {
@@ -352,19 +359,23 @@ public class UploadsController {
                 if (!renameInfo.isNoMatch() && !renameInfo.isIgnoreNode() && !renameInfo.isUniqueFileAlreadyExists() && renameInfo.getType() != FileType.IGNORE) {
                     FileType type = renameInfo.getType();
                     String content = renameInfo.getContent();
-                    String newPathName = new FileParts(renameInfo.getNewPath()).getName();
-                    content = content.replaceAll("id=\".*?\"", "id=\"" + newPathName + "\"");
-                    if (renameInfo.isNCXNode()) {
-                        cumulativeData.setOpfNCXElement(content);
-                        cumulativeData.setOpfSpineToc(newPathName);
-                    } else if (type == FileType.NAVIGATION) {
-                        cumulativeData.setOpfContentsElement(content);
-                        cumulativeData.setOpfFallback(newPathName);
-                    } else {
-                        cumulativeData.getOpfManifestData().add(content);
+                    String newId = new FileParts(renameInfo.getNewPath()).getFileWithExtension();
+                    Pattern idPattern = Pattern.compile("(id=\")(.*?)(\")");
+                    Matcher idMatcher = idPattern.matcher(content);
+                    if (idMatcher.find()) {
+                        SpineRef ref = new SpineRef(newId, type);
+                        spineRefs.put(idMatcher.group(2), ref);
+                        content = content.replace(idMatcher.group(0), "id=\"" + newId + "\"");
+                        if (renameInfo.isNCXNode()) {
+                            cumulativeData.setOpfNCXElement(content);
+                            cumulativeData.setOpfSpineToc(newId);
+                        } else if (type == FileType.NAVIGATION) {
+                            cumulativeData.setOpfContentsElement(content);
+                            cumulativeData.setOpfFallback(newId);
+                        } else {
+                            cumulativeData.getOpfManifestData().add(content);
+                        }
                     }
-                    SpineRef ref = new SpineRef(newPathName, type);
-                    spineRefs.put((new FileParts(renameInfo.getOriginalPath())).getName(), ref);
                 }
             }
 
@@ -392,7 +403,7 @@ public class UploadsController {
                 ArrayList<String> references = extractSections(fileContent, "(\n*)(\s*)(<reference.*?/>)", 0);
                 for (String reference : references) {
                     RenameInfo renameInfo = handleNodeFileRename(fileOptions, reference, "(href=\")(.*?)(#.*)?(\")", 2, ".opf", parentData.getParentFile());
-                    if (!renameInfo.isNoMatch() && !renameInfo.isIgnoreNode() && renameInfo.getType() != FileType.IGNORE) {
+                    if (!renameInfo.isNoMatch() && renameInfo.getType() != FileType.IGNORE) {
                         cumulativeData.getOpfReferenceData().add(renameInfo.getContent());
                     }
                 }
@@ -492,7 +503,7 @@ public class UploadsController {
             fileContent = Files.readString(path);
 
             chunks.put("next", fileOptions.getCumulativeData().getContentsOL1Data());
-            fileContent = FileUtils.processReplacements(fileContent, "(<ol>)(.*?)(\n*)(\s*)(</ol>)", 2, dummy);
+            fileContent = FileUtils.processReplacements(fileContent, "(<ol>)(.*?)(\n*)(\s*)(</ol>)(.*?)(<ol>)(.*?)(</ol>)", 2, dummy);
 
             chunks.put("next", fileOptions.getCumulativeData().getContentsOL2Data());
             fileContent = FileUtils.processReplacements(fileContent, "(<ol>)(.*?)(</ol>)(.*?)(<ol>)(.*?)(\n*)(\s*)(</ol>)", 6, dummy);
@@ -560,8 +571,8 @@ public class UploadsController {
                     return "/" + fileOptions.getFileLocs().get(fileParts.getName() + fileParts.getExt());
                 }
             };
-            fileContent = FileUtils.processReplacements(fileContent, "(href=\")(.*?)(\")", 2, dummy);
-            fileContent = FileUtils.processReplacements(fileContent, "(src=\")(.*?)(\")", 2, dummy);
+            fileContent = FileUtils.processReplacements(fileContent, "(href=\")(.*?)(#.*)?(\")", 2, dummy);
+            fileContent = FileUtils.processReplacements(fileContent, "(src=\")(.*?)(#.*)?(\")", 2, dummy);
         }
 
         Files.writeString(path, fileContent, StandardOpenOption.TRUNCATE_EXISTING);

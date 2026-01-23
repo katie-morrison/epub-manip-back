@@ -67,5 +67,9 @@ public class FileParts {
             return dir.substring(0, slashInd);
         }
     }
+
+    public String getFileWithExtension() {
+        return name + ext;
+    }
     
 }
