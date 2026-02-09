@@ -155,11 +155,6 @@ public class CumulativeData {
 
     public void mergeData() {
         if (ncxContentNavPoint != null) {
-            Pattern fallbackPattern = Pattern.compile("(fallback=\")(.*)(\")", Pattern.DOTALL);
-            Matcher fallbackMatcher = fallbackPattern.matcher(ncxContentNavPoint);
-            if (fallbackMatcher.find()) {
-                ncxContentNavPoint = ncxContentNavPoint.replace(fallbackMatcher.group(0), "fallback=\"" + opfFallback + "\"");
-            }
             ncxNavPointsNonChapters.addFirst(ncxContentNavPoint);
             ncxContentNavPoint = null;
         }
@@ -190,6 +185,11 @@ public class CumulativeData {
         }
 
         if (opfNCXElement != null) {
+            Pattern fallbackPattern = Pattern.compile("(fallback=\")(.*)(\")", Pattern.DOTALL);
+            Matcher fallbackMatcher = fallbackPattern.matcher(opfNCXElement);
+            if (fallbackMatcher.find()) {
+                opfNCXElement = opfNCXElement.replace(fallbackMatcher.group(0), "fallback=\"" + opfFallback + "\"");
+            }
             opfManifestData.addFirst(opfNCXElement);
             opfNCXElement = null;
         }
