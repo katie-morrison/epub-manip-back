@@ -6,6 +6,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.katiemorrison.epub_manip_back.model.pojos.FileType;
 import com.katiemorrison.epub_manip_back.model.pojos.ParentData;
+import com.katiemorrison.epub_manip_back.model.pojos.PhraseReplacements;
 import com.katiemorrison.epub_manip_back.model.pojos.RenameInfo;
 import com.katiemorrison.epub_manip_back.util.CumulativeData;
 import com.katiemorrison.epub_manip_back.util.Dummy;
@@ -544,6 +545,9 @@ public class UploadsController {
                                 recalculateDirectory(fileOptions, path, true);
                             } else if ((new FileParts(path.getFileName().toString())).getExt().equals(".xhtml")) {
                                 recalculateDirectory(fileOptions, path, false);
+                                if (!path.equals(Paths.get(outputDirectory + epubBaseName + File.separator + fileOptions.getUniqueFileLocs().get(".xhtml")))) {
+                                    makeReplacements(fileOptions, path);
+                                }
                             }
                         } catch (IOException e) {
                             System.out.println(e.getMessage());
@@ -576,6 +580,32 @@ public class UploadsController {
         }
 
         Files.writeString(path, fileContent, StandardOpenOption.TRUNCATE_EXISTING);
+    }
+
+    private void makeReplacements(FileOptions fileOptions, Path path) throws IOException {
+        ArrayList<PhraseReplacements> replacements = fileOptions.getReplacements();
+        if (replacements.size() > 0) {
+            String fileContent = Files.readString(path);
+            Pattern bodyPattern = Pattern.compile("(<body>)(.*?)(</body>)", Pattern.DOTALL);
+            Matcher bodyMatcher = bodyPattern.matcher(fileContent);
+            if (bodyMatcher.find()) {
+                String body = bodyMatcher.group(2);
+
+                for (PhraseReplacements replacement : replacements) {
+                    Dummy dummy = new Dummy() {
+                        @Override
+                        public String execute(String value) {
+                            return value.replaceAll(replacement.getBefore(), replacement.getAfter());
+                        }
+                    };
+                    body = FileUtils.processReplacements(body, "(>)(.*?)(<)", 2, dummy);
+                }
+
+                fileContent = fileContent.replace(bodyMatcher.group(0), bodyMatcher.group(1) + body + bodyMatcher.group(3));
+            }
+
+            Files.writeString(path, fileContent, StandardOpenOption.TRUNCATE_EXISTING);
+        }
     }
 
     private void reconstructEpub(String epubBaseName) throws IOException {

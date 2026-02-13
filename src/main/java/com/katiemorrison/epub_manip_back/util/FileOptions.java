@@ -2,6 +2,7 @@ package com.katiemorrison.epub_manip_back.util;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,6 +29,7 @@ public class FileOptions {
     public static FileOptions make(String jsonString) throws JsonProcessingException {
         ObjectMapper mapper = new ObjectMapper();
         FileOptions fileOptions = mapper.readValue(jsonString, FileOptions.class);
+        fileOptions.cleanPhraseReplacements();
         return fileOptions;
     }
 
@@ -162,5 +164,17 @@ public class FileOptions {
             }
         }
         return null;
+    }
+
+    private void cleanPhraseReplacements() {
+        Iterator<PhraseReplacements> iter = replacements.iterator();
+        while (iter.hasNext()) {
+            PhraseReplacements replacement = iter.next();
+            replacement.setBefore(replacement.getBefore().replaceAll("[<>]", ""));
+            replacement.setAfter(replacement.getAfter().replaceAll("[<>]", ""));
+            if (replacement.getBefore().equals("") || replacement.getAfter().equals("")) {
+                iter.remove();
+            }
+        }
     }
 }
