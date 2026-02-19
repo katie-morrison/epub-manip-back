@@ -3,6 +3,8 @@ package com.katiemorrison.epub_manip_back.util;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -69,6 +71,12 @@ public class FileUtils {
         }
 
         return content;
+    }
+
+    public static String addTimeStamp(String name) {
+        LocalDateTime now = LocalDateTime.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("ddMMyyyyHHmmss");
+        return now.format(formatter) + name;
     }
 
 }

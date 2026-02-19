@@ -15,6 +15,12 @@ public class CorsConfiguration implements WebMvcConfigurer{
             .allowedHeaders("*")
             .allowCredentials(true);
 
+        registry.addMapping("/calculateDiagnostics")
+            .allowedOrigins("http://localhost:3000")
+            .allowedMethods("POST")
+            .allowedHeaders("*")
+            .allowCredentials(true);
+
         registry.addMapping("/getEpub/**")
             .allowedOrigins("http://localhost:3000")
             .allowedMethods("GET", "POST")

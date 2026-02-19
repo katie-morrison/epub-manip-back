@@ -55,10 +55,8 @@ public class UploadsController {
     public ResponseEntity<String> uploads(@RequestPart("myFiles") ArrayList<MultipartFile> files, @RequestParam("fileOptions") String fileOptionsJSON) {
         try {
             FileOptions fileOptions = FileOptions.make(fileOptionsJSON);
-            LocalDateTime now = LocalDateTime.now();
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("ddMMyyyyHHmmss");
 
-            String epubBaseName = now.format(formatter) + files.get(0).getOriginalFilename();
+            String epubBaseName = FileUtils.addTimeStamp(files.get(0).getOriginalFilename());
 
             File dir = new File(uploadDirectory + epubBaseName);
             if (!dir.exists()) {
