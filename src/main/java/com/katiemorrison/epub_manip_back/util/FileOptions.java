@@ -29,7 +29,7 @@ public class FileOptions {
     public static FileOptions make(String jsonString) throws JsonProcessingException {
         ObjectMapper mapper = new ObjectMapper();
         FileOptions fileOptions = mapper.readValue(jsonString, FileOptions.class);
-        fileOptions.cleanPhraseReplacements();
+        fileOptions.cleanFileOptions();
         return fileOptions;
     }
 
@@ -166,14 +166,39 @@ public class FileOptions {
         return null;
     }
 
-    private void cleanPhraseReplacements() {
-        Iterator<PhraseReplacements> iter = replacements.iterator();
-        while (iter.hasNext()) {
-            PhraseReplacements replacement = iter.next();
+    private void cleanFileOptions() {
+        HashMap<String, Boolean> existing = new HashMap<String, Boolean>();
+
+        Iterator<ChapterFormat> chapterIter = chapterFormat.iterator();
+        while (chapterIter.hasNext()) {
+            ChapterFormat chapter = chapterIter.next();
+            String current = chapter.getFormat();
+            if (existing.get(current) == null) {
+                existing.put(current, true);
+            } else {
+                chapterIter.remove();
+            }
+        }
+        existing = new HashMap<String, Boolean>();
+
+        Iterator<NonChapterXHTML> nonChapterIter = nonChapterXHTML.iterator();
+        while (nonChapterIter.hasNext()) {
+            NonChapterXHTML nonChapter = nonChapterIter.next();
+            String current = nonChapter.getFileName();
+            if (existing.get(current) == null) {
+                existing.put(current, true);
+            } else {
+                nonChapterIter.remove();
+            }
+        }
+
+        Iterator<PhraseReplacements> phraseIter = replacements.iterator();
+        while (phraseIter.hasNext()) {
+            PhraseReplacements replacement = phraseIter.next();
             replacement.setBefore(replacement.getBefore().replaceAll("[<>]", ""));
             replacement.setAfter(replacement.getAfter().replaceAll("[<>]", ""));
             if (replacement.getBefore().equals("") || replacement.getAfter().equals("")) {
-                iter.remove();
+                phraseIter.remove();
             }
         }
     }
