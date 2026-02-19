@@ -445,7 +445,7 @@ public class UploadsController {
                 ArrayList<String> OL2LIs = extractSections(OL2, liPattern, 0);
                 for (String LI : OL2LIs) {
                     RenameInfo renameInfo = handleNodeFileRename(fileOptions, LI, hrefPattern, 2, ".xhtml", parentFile);
-                    if (!renameInfo.isNoMatch() && !renameInfo.isIgnoreNode() && !renameInfo.isUniqueFileAlreadyExists() && renameInfo.getType() != FileType.IGNORE) {
+                    if (!renameInfo.isNoMatch() && !renameInfo.isUniqueFileAlreadyExists() && renameInfo.getType() != FileType.IGNORE) {
                         contentsOL2.add(renameInfo.getContent());
                     }
                 }
