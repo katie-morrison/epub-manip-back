@@ -5,6 +5,7 @@ public class RenameInfo {
     private boolean isNCXNode;
     private boolean noMatch;
     private boolean uniqueFileAlreadyExists;
+    private boolean fileAlreadyProcessed;
     private String originalPath;
     private String newPath;
     private String content;
@@ -15,6 +16,7 @@ public class RenameInfo {
         isNCXNode = false;
         noMatch = false;
         uniqueFileAlreadyExists = false;
+        fileAlreadyProcessed = false;
         originalPath = null;
         newPath = null;
         content = null;
@@ -52,6 +54,7 @@ public class RenameInfo {
     public String getOriginalPath() {
         return originalPath;
     }
+    
     public void setOriginalPath(String originalPath) {
         this.originalPath = originalPath;
     }
@@ -75,4 +78,26 @@ public class RenameInfo {
     public void setType(FileType type) {
         this.type = type;
     }
+
+    public boolean isFileAlreadyProcessed() {
+        return fileAlreadyProcessed;
+    }
+
+    public void setFileAlreadyProcessed(boolean fileAlreadyProcessed) {
+        this.fileAlreadyProcessed = fileAlreadyProcessed;
+    }
+
+    public boolean isValidGeneral() {
+        return !noMatch && !ignoreNode && !uniqueFileAlreadyExists && !fileAlreadyProcessed && type != FileType.IGNORE;
+    }
+
+    public boolean isValidReference() {
+        return !noMatch && !ignoreNode && type == FileType.NAVIGATION;
+    }
+
+    public boolean isValidSecondOL() {
+        return !noMatch && !ignoreNode && type != FileType.IGNORE;
+    }
+
+    
 }

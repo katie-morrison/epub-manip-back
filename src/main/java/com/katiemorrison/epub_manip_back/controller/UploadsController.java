@@ -25,8 +25,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -262,7 +260,7 @@ public class UploadsController {
                 if (replacementData.getRecordedFiles().get(parentExt).get(newName) == null) {
                     replacementData.getRecordedFiles().get(parentExt).put(newName, true);
                 } else {
-                    ret.setIgnoreNode(true);
+                    ret.setFileAlreadyProcessed(true);
                 }
 
                 String replacement = fileOptions.getFileLocs().get(newName + ext);
@@ -311,7 +309,7 @@ public class UploadsController {
 
                 RenameInfo renameInfo = handleNodeFileRename(fileOptions, navPoint, "(src=\")(.*?)(#.*)?(\")", 2, ".ncx", parentFile);
 
-                if (!renameInfo.isNoMatch() && !renameInfo.isIgnoreNode() && !renameInfo.isUniqueFileAlreadyExists() && renameInfo.getType() != FileType.IGNORE) {
+                if (renameInfo.isValidGeneral()) {
                     navPoint = renameInfo.getContent();
                     FileType type = renameInfo.getType();
                     if (type == FileType.NAVIGATION) {
@@ -355,7 +353,7 @@ public class UploadsController {
             ArrayList<String> items = extractSections(fileContent, "(\n*)(\s*)(<item .*?/>)", 0);
             for (String item : items) {
                 RenameInfo renameInfo = handleNodeFileRename(fileOptions, item, "(href=\")(.*?)(\")", 2, ".opf", parentData.getParentFile());
-                if (!renameInfo.isNoMatch() && !renameInfo.isIgnoreNode() && !renameInfo.isUniqueFileAlreadyExists() && renameInfo.getType() != FileType.IGNORE) {
+                if (renameInfo.isValidGeneral()) {
                     FileType type = renameInfo.getType();
                     String content = renameInfo.getContent();
                     String newId = new FileParts(renameInfo.getNewPath()).getFileWithExtension();
@@ -402,7 +400,7 @@ public class UploadsController {
                 ArrayList<String> references = extractSections(fileContent, "(\n*)(\s*)(<reference.*?/>)", 0);
                 for (String reference : references) {
                     RenameInfo renameInfo = handleNodeFileRename(fileOptions, reference, "(href=\")(.*?)(#.*)?(\")", 2, ".opf", parentData.getParentFile());
-                    if (!renameInfo.isNoMatch() && renameInfo.getType() != FileType.IGNORE) {
+                    if (renameInfo.isValidReference()) {
                         cumulativeData.getOpfReferenceData().add(renameInfo.getContent());
                     }
                 }
@@ -428,7 +426,7 @@ public class UploadsController {
 
             for (String LI : OL1LIs) {
                 RenameInfo renameInfo = handleNodeFileRename(fileOptions, LI, hrefPattern, 2, ".xhtml", parentFile);
-                if (!renameInfo.isNoMatch() && !renameInfo.isIgnoreNode() && !renameInfo.isUniqueFileAlreadyExists() && renameInfo.getType() != FileType.IGNORE) {
+                if (renameInfo.isValidGeneral()) {
                     FileType type = renameInfo.getType();
                     if (type == FileType.CHAPTER) {
                         cumulativeData.getContentsOL1Data().add(renameInfo.getContent());
@@ -443,7 +441,7 @@ public class UploadsController {
                 ArrayList<String> OL2LIs = extractSections(OL2, liPattern, 0);
                 for (String LI : OL2LIs) {
                     RenameInfo renameInfo = handleNodeFileRename(fileOptions, LI, hrefPattern, 2, ".xhtml", parentFile);
-                    if (!renameInfo.isNoMatch() && !renameInfo.isUniqueFileAlreadyExists() && renameInfo.getType() != FileType.IGNORE) {
+                    if (renameInfo.isValidSecondOL()) {
                         contentsOL2.add(renameInfo.getContent());
                     }
                 }
