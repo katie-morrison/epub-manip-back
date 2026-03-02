@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.katiemorrison.epub_manip_back.util.ReplacementProcessor.NavpointIDProcessor;
+
 public class CumulativeData {
     private int ncxInd;
     private int opfInd;
@@ -160,20 +162,18 @@ public class CumulativeData {
         }
 
         ArrayList<String> finalNavPoints = new ArrayList<String>();
-        Dummy dummy = new Dummy() {
-            @Override
-            public String execute(String value) {
-                int navPointInd = getNcxInd();
-                incrementNCXInd();
-                return "navPoint-" + navPointInd + "\" playOrder=\"" + navPointInd;
-            }
-        };
+        NavpointIDProcessor processor = new NavpointIDProcessor();
+
         for (String navPoint : ncxNavPointsNonChapters) {
-            navPoint = FileUtils.processReplacements(navPoint, "(id=\")(.*?)(\")", 2, dummy);
+            processor.setNcxId(ncxInd);
+            incrementNCXInd();
+            navPoint = FileUtils.processReplacements(navPoint, "(id=\")(.*?)(\")", 2, processor);
             finalNavPoints.add(navPoint);
         }
         for (String navPoint : ncxNavPoints) {
-            navPoint = FileUtils.processReplacements(navPoint, "(id=\")(.*?)(\")", 2, dummy);
+            processor.setNcxId(ncxInd);
+            incrementNCXInd();
+            navPoint = FileUtils.processReplacements(navPoint, "(id=\")(.*?)(\")", 2, processor);
             finalNavPoints.add(navPoint);
         }
         ncxNavPoints = finalNavPoints;

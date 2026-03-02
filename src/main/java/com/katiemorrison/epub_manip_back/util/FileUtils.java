@@ -9,6 +9,8 @@ import java.util.Comparator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.katiemorrison.epub_manip_back.util.ReplacementProcessor.ReplacementProcessor;
+
 public class FileUtils {
 
     @SafeVarargs
@@ -52,13 +54,14 @@ public class FileUtils {
         deleteFileOrDirectory(directory, false);
     }
     
-    public static String processReplacements(String content, String patternString, int groupToReplace, Dummy dummy) {
+    public static String processReplacements(String content, String patternString, int groupToReplace, ReplacementProcessor processor) {
         Pattern pattern = Pattern.compile(patternString, Pattern.DOTALL);
         Matcher matcher = pattern.matcher(content);
 
         while (matcher.find()) {
             String before = matcher.group(0);
-            String replacement = dummy.execute(matcher.group(groupToReplace));
+            processor.setContent(matcher.group(groupToReplace));
+            String replacement = processor.execute();
             StringBuilder after = new StringBuilder();
             for (int i = 1; i <= matcher.groupCount(); i++) {
                 if (i == groupToReplace) {

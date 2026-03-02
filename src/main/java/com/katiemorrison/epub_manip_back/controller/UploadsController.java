@@ -9,11 +9,14 @@ import com.katiemorrison.epub_manip_back.model.pojos.ParentData;
 import com.katiemorrison.epub_manip_back.model.pojos.PhraseReplacements;
 import com.katiemorrison.epub_manip_back.model.pojos.RenameInfo;
 import com.katiemorrison.epub_manip_back.util.CumulativeData;
-import com.katiemorrison.epub_manip_back.util.Dummy;
 import com.katiemorrison.epub_manip_back.util.FileOptions;
 import com.katiemorrison.epub_manip_back.util.FileParts;
 import com.katiemorrison.epub_manip_back.util.FileUtils;
 import com.katiemorrison.epub_manip_back.util.ReplacementData;
+import com.katiemorrison.epub_manip_back.util.ReplacementProcessor.BeforeAfterProcessor;
+import com.katiemorrison.epub_manip_back.util.ReplacementProcessor.OPFLocationProcessor;
+import com.katiemorrison.epub_manip_back.util.ReplacementProcessor.StringArrayProcessor;
+import com.katiemorrison.epub_manip_back.util.ReplacementProcessor.XHTMLSrcLocationProcessor;
 
 import net.lingala.zip4j.ZipFile;
 import net.lingala.zip4j.exception.ZipException;
@@ -454,56 +457,45 @@ public class UploadsController {
     private void alterUniqueFiles(String root, FileOptions fileOptions) {
         try {
             CumulativeData cumulativeData = fileOptions.getCumulativeData();
-            HashMap<String, ArrayList<String>> chunks = new HashMap<String, ArrayList<String>>();
             Path path = Paths.get(root + File.separator + fileOptions.getUniqueFileLocs().get(".ncx"));
             String fileContent = Files.readString(path);
             ArrayList<String> title = new ArrayList<String>(Arrays.asList(fileOptions.getOutputName()));
             ArrayList<String> toc = new ArrayList<String>(Arrays.asList(cumulativeData.getOpfSpineToc()));
-            Dummy dummy = new Dummy() {
-                @Override
-                public String execute(String value) {
-                    StringBuilder sb = new StringBuilder();
-                    for (String item : chunks.get("next")) {
-                        sb.append(item);
-                    }
-                    return sb.toString();
-                }
-            };
 
-            chunks.put("next", title);
-            fileContent = FileUtils.processReplacements(fileContent, "(<docTitle.*?<text>)(.*?)(\n*)(\s*)(</text>)", 2, dummy);
+            StringArrayProcessor processor = new StringArrayProcessor(title);
+            fileContent = FileUtils.processReplacements(fileContent, "(<docTitle.*?<text>)(.*?)(\n*)(\s*)(</text>)", 2, processor);
 
-            chunks.put("next", cumulativeData.getNcxNavPoints());
-            fileContent = FileUtils.processReplacements(fileContent, "(<navMap>)(.*?)(\n*)(\s*)(</navMap>)", 2, dummy);
+            processor.setStrings(cumulativeData.getNcxNavPoints());
+            fileContent = FileUtils.processReplacements(fileContent, "(<navMap>)(.*?)(\n*)(\s*)(</navMap>)", 2, processor);
 
             Files.writeString(path, fileContent, StandardOpenOption.TRUNCATE_EXISTING);
             path = Paths.get(root + File.separator + fileOptions.getUniqueFileLocs().get(".opf"));
             fileContent = Files.readString(path);
 
-            chunks.put("next", title);
-            fileContent = FileUtils.processReplacements(fileContent, "(<dc:title>)(.*?)(\n*)(\s*)(</dc:title>)", 2, dummy);
+            processor.setStrings(title);
+            fileContent = FileUtils.processReplacements(fileContent, "(<dc:title>)(.*?)(\n*)(\s*)(</dc:title>)", 2, processor);
 
-            chunks.put("next", cumulativeData.getOpfManifestData());
-            fileContent = FileUtils.processReplacements(fileContent, "(<manifest>)(.*?)(\n*)(\s*)(</manifest>)", 2, dummy);
+            processor.setStrings(cumulativeData.getOpfManifestData());
+            fileContent = FileUtils.processReplacements(fileContent, "(<manifest>)(.*?)(\n*)(\s*)(</manifest>)", 2, processor);
 
-            chunks.put("next", toc);
-            fileContent = FileUtils.processReplacements(fileContent, "(<spine.*?toc=\")(.*?)(\")", 2, dummy);
+            processor.setStrings(toc);
+            fileContent = FileUtils.processReplacements(fileContent, "(<spine.*?toc=\")(.*?)(\")", 2, processor);
 
-            chunks.put("next", cumulativeData.getOpfSpineData());
-            fileContent = FileUtils.processReplacements(fileContent, "(<spine.*?>)(.*?)(\n*)(\s*)(</spine>)", 2, dummy);
+            processor.setStrings(cumulativeData.getOpfSpineData());
+            fileContent = FileUtils.processReplacements(fileContent, "(<spine.*?>)(.*?)(\n*)(\s*)(</spine>)", 2, processor);
 
-            chunks.put("next", cumulativeData.getOpfReferenceData());
-            fileContent = FileUtils.processReplacements(fileContent, "(<guide.*?>)(.*?)(\n*)(\s*)(</guide>)", 2, dummy);
+            processor.setStrings(cumulativeData.getOpfReferenceData());
+            fileContent = FileUtils.processReplacements(fileContent, "(<guide.*?>)(.*?)(\n*)(\s*)(</guide>)", 2, processor);
     
             Files.writeString(path, fileContent, StandardOpenOption.TRUNCATE_EXISTING);
             path = Paths.get(root + File.separator + fileOptions.getUniqueFileLocs().get(".xhtml"));
             fileContent = Files.readString(path);
 
-            chunks.put("next", fileOptions.getCumulativeData().getContentsOL1Data());
-            fileContent = FileUtils.processReplacements(fileContent, "(<ol>)(.*?)(\n*)(\s*)(</ol>)(.*?)(<ol>)(.*?)(</ol>)", 2, dummy);
+            processor.setStrings(fileOptions.getCumulativeData().getContentsOL1Data());
+            fileContent = FileUtils.processReplacements(fileContent, "(<ol>)(.*?)(\n*)(\s*)(</ol>)(.*?)(<ol>)(.*?)(</ol>)", 2, processor);
 
-            chunks.put("next", fileOptions.getCumulativeData().getContentsOL2Data());
-            fileContent = FileUtils.processReplacements(fileContent, "(<ol>)(.*?)(</ol>)(.*?)(<ol>)(.*?)(\n*)(\s*)(</ol>)", 6, dummy);
+            processor.setStrings(fileOptions.getCumulativeData().getContentsOL2Data());
+            fileContent = FileUtils.processReplacements(fileContent, "(<ol>)(.*?)(</ol>)(.*?)(<ol>)(.*?)(\n*)(\s*)(</ol>)", 6, processor);
 
             Files.writeString(path, fileContent, StandardOpenOption.TRUNCATE_EXISTING);
 
@@ -556,23 +548,12 @@ public class UploadsController {
     private void recalculateDirectory(FileOptions fileOptions, Path path, boolean isContainerXML) throws IOException {
         String fileContent = Files.readString(path);
         if (isContainerXML) {
-            Dummy dummy = new Dummy() {
-                @Override
-                public String execute(String value) {
-                    return fileOptions.getUniqueFileLocs().get(".opf");
-                }
-            };
-            fileContent = FileUtils.processReplacements(fileContent, "(full-path=\")(.*?)(\")", 2, dummy);
+            OPFLocationProcessor processor = new OPFLocationProcessor(fileOptions);
+            fileContent = FileUtils.processReplacements(fileContent, "(full-path=\")(.*?)(\")", 2, processor);
         } else {
-            Dummy dummy = new Dummy() {
-                @Override
-                public String execute(String value) {
-                    FileParts fileParts = new FileParts(value);
-                    return "/" + fileOptions.getFileLocs().get(fileParts.getName() + fileParts.getExt());
-                }
-            };
-            fileContent = FileUtils.processReplacements(fileContent, "(href=\")(.*?)(#.*)?(\")", 2, dummy);
-            fileContent = FileUtils.processReplacements(fileContent, "(src=\")(.*?)(#.*)?(\")", 2, dummy);
+            XHTMLSrcLocationProcessor processor = new XHTMLSrcLocationProcessor(fileOptions);
+            fileContent = FileUtils.processReplacements(fileContent, "(href=\")(.*?)(#.*)?(\")", 2, processor);
+            fileContent = FileUtils.processReplacements(fileContent, "(src=\")(.*?)(#.*)?(\")", 2, processor);
         }
 
         Files.writeString(path, fileContent, StandardOpenOption.TRUNCATE_EXISTING);
@@ -588,13 +569,8 @@ public class UploadsController {
                 String body = bodyMatcher.group(2);
 
                 for (PhraseReplacements replacement : replacements) {
-                    Dummy dummy = new Dummy() {
-                        @Override
-                        public String execute(String value) {
-                            return value.replaceAll(replacement.getBefore(), replacement.getAfter());
-                        }
-                    };
-                    body = FileUtils.processReplacements(body, "(>)(.*?)(<)", 2, dummy);
+                    BeforeAfterProcessor processor = new BeforeAfterProcessor(replacement);
+                    body = FileUtils.processReplacements(body, "(>)(.*?)(<)", 2, processor);
                 }
 
                 fileContent = fileContent.replace(bodyMatcher.group(0), bodyMatcher.group(1) + body + bodyMatcher.group(3));
