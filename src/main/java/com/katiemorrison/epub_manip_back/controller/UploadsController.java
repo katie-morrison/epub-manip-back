@@ -12,8 +12,8 @@ import com.katiemorrison.epub_manip_back.util.CumulativeData;
 import com.katiemorrison.epub_manip_back.util.FileOptions;
 import com.katiemorrison.epub_manip_back.util.FileParts;
 import com.katiemorrison.epub_manip_back.util.FileUtils;
+import com.katiemorrison.epub_manip_back.util.MakeReplacementsTask;
 import com.katiemorrison.epub_manip_back.util.ReplacementData;
-import com.katiemorrison.epub_manip_back.util.ReplacementProcessor.BeforeAfterProcessor;
 import com.katiemorrison.epub_manip_back.util.ReplacementProcessor.OPFLocationProcessor;
 import com.katiemorrison.epub_manip_back.util.ReplacementProcessor.StringArrayProcessor;
 import com.katiemorrison.epub_manip_back.util.ReplacementProcessor.XHTMLSrcLocationProcessor;
@@ -73,7 +73,7 @@ public class UploadsController {
             deleteTempFolder(epubBaseName);
             recalculateDirectories(epubBaseName, fileOptions);
             reconstructEpub(epubBaseName);
-            System.out.println(fileOptions.toString());
+            // System.out.println(fileOptions.toString());
             FileUtils.deleteFileOrDirectory(Paths.get(outputDirectory + epubBaseName).toAbsolutePath().normalize());
             FileUtils.deleteFileOrDirectory(Paths.get(uploadDirectory + epubBaseName).toAbsolutePath().normalize());
             return ResponseEntity.ok(epubBaseName);
@@ -524,6 +524,7 @@ public class UploadsController {
     private void recalculateDirectories(String epubBaseName, FileOptions fileOptions) throws IOException {
         String root = outputDirectory + epubBaseName;
         Path rootPath = Paths.get(root);
+        ArrayList<Thread> threads = new ArrayList<Thread>();
         if (Files.exists(rootPath) && Files.isDirectory(rootPath)) {
             Files.walk(rootPath)
                 .forEach(path -> {
@@ -534,7 +535,7 @@ public class UploadsController {
                             } else if ((new FileParts(path.getFileName().toString())).getExt().equals(".xhtml")) {
                                 recalculateDirectory(fileOptions, path, false);
                                 if (!path.equals(Paths.get(outputDirectory + epubBaseName + File.separator + fileOptions.getUniqueFileLocs().get(".xhtml")))) {
-                                    makeReplacements(fileOptions, path);
+                                    threads.add(makeReplacements(fileOptions, path));
                                 }
                             }
                         } catch (IOException e) {
@@ -542,6 +543,13 @@ public class UploadsController {
                         }
                     }
                 });
+        }
+        for (Thread thread : threads) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                System.out.println(e.getMessage());
+            }
         }
     }
 
@@ -559,25 +567,12 @@ public class UploadsController {
         Files.writeString(path, fileContent, StandardOpenOption.TRUNCATE_EXISTING);
     }
 
-    private void makeReplacements(FileOptions fileOptions, Path path) throws IOException {
+    private Thread makeReplacements(FileOptions fileOptions, Path path) throws IOException {
         ArrayList<PhraseReplacements> replacements = fileOptions.getReplacements();
-        if (replacements.size() > 0) {
-            String fileContent = Files.readString(path);
-            Pattern bodyPattern = Pattern.compile("(<body>)(.*?)(</body>)", Pattern.DOTALL);
-            Matcher bodyMatcher = bodyPattern.matcher(fileContent);
-            if (bodyMatcher.find()) {
-                String body = bodyMatcher.group(2);
-
-                for (PhraseReplacements replacement : replacements) {
-                    BeforeAfterProcessor processor = new BeforeAfterProcessor(replacement);
-                    body = FileUtils.processReplacements(body, "(>)(.*?)(<)", 2, processor);
-                }
-
-                fileContent = fileContent.replace(bodyMatcher.group(0), bodyMatcher.group(1) + body + bodyMatcher.group(3));
-            }
-
-            Files.writeString(path, fileContent, StandardOpenOption.TRUNCATE_EXISTING);
-        }
+        MakeReplacementsTask task = new MakeReplacementsTask(replacements, path);
+        Thread t = new Thread(task);
+        t.start();
+        return t;
     }
 
     private void reconstructEpub(String epubBaseName) throws IOException {
