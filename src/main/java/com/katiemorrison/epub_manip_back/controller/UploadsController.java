@@ -33,6 +33,9 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -74,8 +77,8 @@ public class UploadsController {
             recalculateDirectories(epubBaseName, fileOptions);
             reconstructEpub(epubBaseName);
             // System.out.println(fileOptions.toString());
-            FileUtils.deleteFileOrDirectory(Paths.get(outputDirectory + epubBaseName).toAbsolutePath().normalize());
-            FileUtils.deleteFileOrDirectory(Paths.get(uploadDirectory + epubBaseName).toAbsolutePath().normalize());
+            // FileUtils.deleteFileOrDirectory(Paths.get(outputDirectory + epubBaseName).toAbsolutePath().normalize());
+            // FileUtils.deleteFileOrDirectory(Paths.get(uploadDirectory + epubBaseName).toAbsolutePath().normalize());
             return ResponseEntity.ok(epubBaseName);
         } catch (JsonProcessingException e) {
             System.out.println("JsonProcessingException: " + e.getMessage());
@@ -524,7 +527,7 @@ public class UploadsController {
     private void recalculateDirectories(String epubBaseName, FileOptions fileOptions) throws IOException {
         String root = outputDirectory + epubBaseName;
         Path rootPath = Paths.get(root);
-        ArrayList<Thread> threads = new ArrayList<Thread>();
+        ExecutorService executor = Executors.newCachedThreadPool();
         if (Files.exists(rootPath) && Files.isDirectory(rootPath)) {
             Files.walk(rootPath)
                 .forEach(path -> {
@@ -535,7 +538,7 @@ public class UploadsController {
                             } else if ((new FileParts(path.getFileName().toString())).getExt().equals(".xhtml")) {
                                 recalculateDirectory(fileOptions, path, false);
                                 if (!path.equals(Paths.get(outputDirectory + epubBaseName + File.separator + fileOptions.getUniqueFileLocs().get(".xhtml")))) {
-                                    threads.add(makeReplacements(fileOptions, path));
+                                    executor.submit(makeReplacements(fileOptions, path));
                                 }
                             }
                         } catch (IOException e) {
@@ -544,13 +547,15 @@ public class UploadsController {
                     }
                 });
         }
-        for (Thread thread : threads) {
-            try {
-                thread.join();
-            } catch (InterruptedException e) {
-                System.out.println(e.getMessage());
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(3, TimeUnit.MINUTES)) {
+                executor.shutdownNow();
             }
+        } catch (InterruptedException e) {
+            System.out.println(e.getMessage());
         }
+
     }
 
     private void recalculateDirectory(FileOptions fileOptions, Path path, boolean isContainerXML) throws IOException {
@@ -567,12 +572,10 @@ public class UploadsController {
         Files.writeString(path, fileContent, StandardOpenOption.TRUNCATE_EXISTING);
     }
 
-    private Thread makeReplacements(FileOptions fileOptions, Path path) throws IOException {
+    private Runnable makeReplacements(FileOptions fileOptions, Path path) throws IOException {
         ArrayList<PhraseReplacements> replacements = fileOptions.getReplacements();
         MakeReplacementsTask task = new MakeReplacementsTask(replacements, path);
-        Thread t = new Thread(task);
-        t.start();
-        return t;
+        return task;
     }
 
     private void reconstructEpub(String epubBaseName) throws IOException {
