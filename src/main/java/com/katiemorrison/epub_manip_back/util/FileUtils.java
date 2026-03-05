@@ -57,23 +57,18 @@ public class FileUtils {
     public static String processReplacements(String content, String patternString, int groupToReplace, ReplacementProcessor processor) {
         Pattern pattern = Pattern.compile(patternString, Pattern.DOTALL);
         Matcher matcher = pattern.matcher(content);
+        StringBuilder sb = new StringBuilder();
 
         while (matcher.find()) {
             String before = matcher.group(0);
-            processor.setContent(matcher.group(groupToReplace));
-            String replacement = processor.execute();
-            StringBuilder after = new StringBuilder();
-            for (int i = 1; i <= matcher.groupCount(); i++) {
-                if (i == groupToReplace) {
-                    after.append(replacement);
-                } else {
-                    after.append(firstNonNull(matcher.group(i), ""));
-                }
-            }
-            content = content.replace(before, after);
+            String group = matcher.group(groupToReplace);
+            processor.setContent(group);
+            String after = processor.execute();
+            matcher.appendReplacement(sb, Matcher.quoteReplacement(before.replace(group, after)));
         }
+        matcher.appendTail(sb);
 
-        return content;
+        return sb.toString();
     }
 
     public static String addTimeStamp(String name) {
@@ -81,5 +76,4 @@ public class FileUtils {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("ddMMyyyyHHmmss");
         return now.format(formatter) + name;
     }
-
 }

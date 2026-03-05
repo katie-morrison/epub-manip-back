@@ -32,7 +32,7 @@ public class MakeReplacementsTask implements Runnable {
 
                     for (PhraseReplacements replacement : replacements) {
                         BeforeAfterProcessor processor = new BeforeAfterProcessor(replacement);
-                        body = FileUtils.processReplacements(body, "(>)(.*?)(<)", 2, processor);
+                        body = FileUtils.processReplacements(body, "(>)([^<]*+)(<)", 2, processor);
                     }
 
                     fileContent = fileContent.replace(bodyMatcher.group(0), bodyMatcher.group(1) + body + bodyMatcher.group(3));
